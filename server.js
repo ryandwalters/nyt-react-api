@@ -1,29 +1,27 @@
-// Dependencies
 const express = require("express");
 const path = require("path");
 const bodyParser = require("body-parser");
 const logger = require("morgan");
-const axios =require ("axios")
 const PORT = process.env.PORT || 3001;
 const app = express();
-const apiRoutes = require("./routes/apiRoutes.js");
+const request = require("request");
+// const apiRoutes = require("./routes/apiRoutes.js");
 const mongojs = require("mongojs");
-
-// Set the app up with morgan
 app.use(logger("dev"));
-
-// set the app up with bodyparser
 app.use(bodyParser());
+
+// const scraper = require("./utils/api.js");
+
 
 // Database configuration
 const databaseUrl = process.env.MONGODB_URI || "nytreact_db";
-const collections = ["news"];
+const collections = ["articles"];
 
 // Hook mongojs config to db variable
-const db = mongojs(databaseUrl , collections);
+const db = mongojs(databaseUrl, collections);
 
 // Log any mongojs errors to console
-db.on("error", function(error) {
+db.on("error", function (error) {
   console.log("Database Error:", error);
 });
 
@@ -34,64 +32,135 @@ db.on("error", function(error) {
 
   read up on CORs here: https://www.maxcdn.com/one/visual-glossary/cors/
 */
-  //allow the api to be accessed by other apps
-  app.use(function(req, res, next) {
-    res.header("Access-Control-Allow-Origin", "*");
-    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-    res.header("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE");
-    next();
+//allow the api to be accessed by other apps
+app.use(function (req, res, next) {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+  res.header("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE");
+  next();
+});
+
+// app.get('/scrape', function (req, res) {
+//   request("https://api.nytimes.com/svc/search/v2/articlesearch.json?api-key=" +
+//   "b9f91d369ff59547cd47b931d8cbc56b:0:74623931" + "&q=")
+//   scraper.getArticles
+
+// });
+//api key from NYTIMES
+
+// var url = "https://api.nytimes.com/svc/search/v2/articlesearch.json";
+// url += '?' + this.param({
+//   'api-key': "5e863d798747414bb5030449461746ce",
+//   'q': "jazz",
+//   'begin_date': "20180101",
+//   'end_date': "20180130",
+//   'page': 0
+// });
+// $.ajax({
+//   url: url,
+//   method: 'GET',
+// }).done(function (result) {
+//   console.log(result);
+// }).fail(function (err) {
+//   throw err;
+// });
+
+app.get('/articles/:q/:begin_date/:end_date/', function (req, res) {
+  var ob = {
+    'api-key': "5e863d798747414bb5030449461746ce",
+    'page': '0',
+    'q': req.params.q,
+    'begin_date': req.params.begin_date
+  }
+
+  if (req.params.end_date != 0) {
+    ob.end_date = req.params.end_date;
+  }
+
+  request.get({
+    url: "https://api.nytimes.com/svc/search/v2/articlesearch.json",
+    qs: ob,
+  }, function (err, response, body) {
+    body = JSON.parse(body);
+    res.json(body);
+  })
+})
+
+//Route to get all articles
+app.get('/articles', function (req, res) {
+  db.articles.find({}, function (error, result) {
+    res.json(result);
+  });
+});
+
+app.put('/article/:id', function (req, res) {
+  db.articles.findAndModify({
+    query: {
+      "_id": mongojs.ObjectId(req.params.id)
+    },
+    update: {
+      $set: {
+        "name": req.body.name
+      }
+    },
+    new: true
+  }, function (err, editedArticle) {
+    res.json(editedArticle);
+  });
+});
+
+  //route to save an article
+  app.post('/savedArticle', function (req, res) {
+    db.articles.insert(req.body, function (error, savedArticle) {
+      // Log any errors
+      if (error) {
+        res.send(error);
+      } else {
+        res.json(savedArticle);
+      }
+    });
   });
 
-//route to get all of my books
-app.get('/news', function(req, res){
-	db.news.find({}, function(error, result){
-	    res.json(result);
-	});
-});
+  //route to delete a saved story
+  app.delete('/delete/:id', function (req, res) {
+    var article_id = req.params.id;
 
+    db.articles.remove({
+      "_id": mongojs.ObjectID(article_id)
+    }, function (error, removed) {
+      if (error) {
+        res.send(error);
+      } else {
+        res.json(article_id);
+      }
+    });
 
-//route to save a story
-app.post('/newsInsert', function(req, res){
-	db.news.insert(req.body, function(error, savedStory) {
-	  // Log any errors
-	  if (error) {
-	    res.send(error);
-	  }else {
-	    res.json(savedBook);
-	  }
-	});
-});
+  });
 
-//route to delete a saved story
-app.delete('/delete/:id', function(req, res){
-  var book_id = req.params.id;
-
-  db.news.remove({
-    "_id": mongojs.ObjectID(book_id)
-  }, function(error, removed) {
-    if (error) {
-      res.send(error);
-    }else {
-      res.json(book_id);
+  app.get('/articles/:q/:begin_date/:end_date/', function (req, res) {
+    var ob = {
+      'api-key': "bc5f77268f204de5bdbc933ba1f5c699",
+      'page': '0',
+      'q': req.params.q,
+      'begin_date': req.params.begin_date
     }
-  });
 
-});
+    if (req.params.end_date != 0) {
+      ob.end_date = req.params.end_date;
+    }
 
-// // Listen on port 3001
-  app.listen(PORT, function() {
+    request.get({
+      url: "https://api.nytimes.com/svc/search/v2/articlesearch.json",
+      qs: ob,
+    }, function (err, response, body) {
+      body = JSON.parse(body);
+      res.json(body);
+    })
+  })
+
+
+
+  // // Listen on port 3001
+  app.listen(PORT, function () {
     console.log('🌎 ==> Now listening on PORT %s! Visit http://localhost:%s in your browser!', PORT, PORT);
   });
-
-
-
-
-  // app.get("/news", (req, res) => {
-  //   axios
-  //     .get("https://api.nytimes.com/svc/search/v2/articlesearch.json?api-key=" +
-  //     b9f91d369ff59547cd47b931d8cbc56b:0:74623931+ "&q=", { params: req.query })
-  //     .then(({ data: { results } }) => res.json(results))
-  //     .catch(err => res.status(422).json(err));
-  // });
-  
-  // module.exports = router;
