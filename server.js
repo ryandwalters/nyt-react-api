@@ -40,30 +40,7 @@ app.use(function (req, res, next) {
   next();
 });
 
-// app.get('/scrape', function (req, res) {
-//   request("https://api.nytimes.com/svc/search/v2/articlesearch.json?api-key=" +
-//   "b9f91d369ff59547cd47b931d8cbc56b:0:74623931" + "&q=")
-//   scraper.getArticles
 
-// });
-//api key from NYTIMES
-
-// var url = "https://api.nytimes.com/svc/search/v2/articlesearch.json";
-// url += '?' + this.param({
-//   'api-key': "5e863d798747414bb5030449461746ce",
-//   'q': "jazz",
-//   'begin_date': "20180101",
-//   'end_date': "20180130",
-//   'page': 0
-// });
-// $.ajax({
-//   url: url,
-//   method: 'GET',
-// }).done(function (result) {
-//   console.log(result);
-// }).fail(function (err) {
-//   throw err;
-// });
 
 app.get('/articles/:q/:begin_date/:end_date/', function (req, res) {
   var ob = {
@@ -158,6 +135,10 @@ app.put('/article/:id', function (req, res) {
     })
   })
 
+
+  if (process.env.NODE_ENV === 'production') {
+    app.use(express.static('client/build'));
+  }
 
 
   // // Listen on port 3001
